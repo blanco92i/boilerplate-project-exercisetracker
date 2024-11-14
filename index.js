@@ -117,31 +117,63 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
 });
 
 //get user log exercice
-app.get('/api/users/:_id/logs', async(req,res)=>{
-  const userId =req.params._id
+app.get('/api/users/:_id/logs', async (req, res) => {
+  const userId = req.params._id;
+  const { from, to, limit } = req.query;
+
   try {
-    const user = await User.findById(userId)
-    if(!user){
-      res.status(404).json({message:'user dont found'})
+    // Rechercher l'utilisateur par son _id
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Appliquer les filtres sur le log
+    let filteredLog = user.log;
+
+    // Filtrer par date "from"
+    if (from) {
+      const fromDate = new Date(from);
+      if (!isNaN(fromDate)) {
+        filteredLog = filteredLog.filter(exercise => exercise.date >= fromDate);
+      }
+    }
+
+    // Filtrer par date "to"
+    if (to) {
+      const toDate = new Date(to);
+      if (!isNaN(toDate)) {
+        filteredLog = filteredLog.filter(exercise => exercise.date <= toDate);
+      }
+    }
+
+    // Limiter le nombre de résultats
+    if (limit) {
+      const limitNumber = parseInt(limit);
+      if (!isNaN(limitNumber) && limitNumber > 0) {
+        filteredLog = filteredLog.slice(0, limitNumber);
+      }
     }
 
     // Formater les dates des exercices dans le log
-    const formattedLog = user.log.map(exercise => ({
+    const formattedLog = filteredLog.map(exercise => ({
       description: exercise.description,
       duration: exercise.duration,
       date: exercise.date.toDateString() // Formater la date
     }));
 
+    // Construire et retourner la réponse
     res.status(200).json({
-      username : user.username,
-      count: user.log.length,
+      username: user.username,
+      count: filteredLog.length,
       _id: user._id,
       log: formattedLog
-    })
+    });
   } catch (error) {
-    res.status(500).json({error:'server error'})
+    res.status(500).json({ error: 'Server error' });
   }
-})
+});
+
 
 //get all users
 app.get('/api/users', async(req,res)=>{
